@@ -16,12 +16,11 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 # CNN FUNCTIONS
-
 def scrape_urls_cnn(urls, dates, start, stop, driver):
     '''
     Function to scrape all urls of topic
     '''
-    time.sleep(5)
+    time.sleep(2)
     xpath = '/html/body/div[5]/div[2]/div/div[2]/div[2]/div/div[3]/div[{}]/div[2]/div[1]/span[2]'
     a_xpath = '/html/body/div[5]/div[2]/div/div[2]/div[2]/div/div[3]/div[{}]/div[2]/h3/a'
     ymd_start = datetime(start[0], start[1], start[2]).date()
@@ -34,11 +33,9 @@ def scrape_urls_cnn(urls, dates, start, stop, driver):
             ts = datetime.strptime(ele, '%b %d %Y').date()
             href = driver.find_element_by_xpath(a_xpath.format(i+1)).get_attribute('href')
             if ts < ymd_start:
-                print('All URLS in date range scraped')
-                print(f'Number of article URLs: {len(urls)}\n')
-                return urls, dates
+                continue
             elif ts < ymd_stop:
-                if re.search('(live-news)', href) or re.search('(style)', href):
+                if re.search('(live-news)', href):
                     continue
                 else:
                     urls.append(href)
@@ -64,24 +61,33 @@ def _clean_body(article):
     cleaned = re.sub(r"^.*?\)|(CNN's.*)", "", article)
     return cleaned
 
-def scrape_one_cnn(url, driver):
+def scrape_one_cnn(url, driver, count_sc, count_no):
     '''
     Function to scrape headline, byline, and article body
     '''
+    driver.get(url)
+    time.sleep(3)
+
     try:
-        driver.get(url)
-        time.sleep(2)
+        modal_button = driver.find_element_by_class_name('bx-close bx-close-link bx-close-inside')
+        modal_button.click()
+    except:
+        pass
+
+    try:
         headline = driver.find_element_by_class_name('pg-headline').text
         texts = driver.find_elements_by_class_name('zn-body__paragraph')
         article = ' '.join([ text.text for text in texts ])
         article = _clean_body(article)
         byline = driver.find_element_by_class_name('metadata__byline__author').text
+        count_sc += 1
     except:
+        count_no += 1
         headline = 'No headline'
         byline = 'No byline'
         article = 'No text'
         
-    return headline, byline, article     
+    return headline, byline, article, count_sc, count_no  
 
 def scrape_articles_cnn(urls, dates, headlines, bylines, bodies, start, stop, driver):
     '''
@@ -89,12 +95,18 @@ def scrape_articles_cnn(urls, dates, headlines, bylines, bodies, start, stop, dr
     '''
     urls, dates = scrape_urls_cnn(urls, dates, start, stop, driver)
     
+    count_sc = 0
+    count_no = 0
+
     for url in urls:
-        headline, byline, article = scrape_one_cnn(url, driver)
+        headline, byline, article, count_sc, count_no = scrape_one_cnn(url, driver, count_sc, count_no)
         bodies.append(article)
         headlines.append(headline)
         bylines.append(byline)
-        
+    
+    print(f'Number of Articles Scraped: {count_sc}\n')
+    print(f'Number of Articles w/o Text: {count_no}\n')
+
     return urls, dates, headlines, bylines, bodies      
 
 def scrape_cnn(start, stop, ret_csv=False, csv='', ret_df=True):
@@ -110,7 +122,7 @@ def scrape_cnn(start, stop, ret_csv=False, csv='', ret_df=True):
     '''
     # Instantiate driver
     driver = webdriver.Chrome()
-    driver.get('https://www.cnn.com/search?q=Hong%20Kong%20Protest&size=10&type=article')
+    driver.get('https://www.cnn.com/search?q=hong%20kong%20protests&size=10&page=1&category=world&type=article')
 
     urls = []
     dates = []
@@ -135,9 +147,9 @@ def scrape_cnn(start, stop, ret_csv=False, csv='', ret_df=True):
     # Convert to .csv (with tab delimiter)
     if ret_csv == True:
         df.to_csv(csv, sep='\t')
-        print('CSV Created')
+        print(f'File {csv} Created')
     
     if ret_df == True:
         return df
-        
+
     return
