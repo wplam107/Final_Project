@@ -14,6 +14,7 @@ from selenium.webdriver.common.keys import Keys
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.action_chains import ActionChains
 
 # CNN FUNCTIONS
 def scrape_urls_cnn(urls, dates, start, stop, driver):
@@ -68,6 +69,7 @@ def scrape_one_cnn(url, driver, count_sc, count_no):
     driver.get(url)
     time.sleep(3)
 
+    # Click modal button
     try:
         modal_button = driver.find_element_by_class_name('bx-close bx-close-link bx-close-inside')
         modal_button.click()
@@ -151,5 +153,169 @@ def scrape_cnn(start, stop, ret_csv=False, csv='', ret_df=True):
     
     if ret_df == True:
         return df
+    return
 
+# SCMP functions
+
+def _super_scroll(scroll, driver):
+    '''
+    Function to scroll down page, approximately 30 new articles per scroll
+    '''
+    counter = 0
+    i = 0
+    while i < scroll:
+        actions = ActionChains(driver)
+        time.sleep(random.uniform(1, 3))
+        more_content = driver.find_element_by_class_name('topic-content__load-more-anchor')
+        actions.move_to_element(more_content).double_click(more_content).send_keys(Keys.SPACE).perform()
+        i += 1
+        counter += 1
+        if counter % 10 == 0:    
+            print(f'Scrolls: {i}')
+
+# Helper function to determine number of articles
+def _len_eles(driver):
+    total = len(driver.find_elements_by_xpath('//*[@id="topic-detail"]/div[1]/div/div[5]/div[2]/*'))
+    return total
+
+def scrape_urls_scmp(start, stop, scroll):
+    '''
+    Function to scrape URLs and dates
+
+    Parameters:
+        start : tuple (Y, m, d), inclusive start date for article scraping
+        stop : tuple (Y, m, d), exclusive stop date for article scraping
+        scroll : int, number of scrolls through SCMP web search
+    '''
+    # Instantiate driver
+    driver = webdriver.Chrome()
+    driver.get('https://www.scmp.com/topics/hong-kong-protests')
+
+    # Scroll through pages
+    _super_scroll(scroll, driver)
+
+    urls = []
+    dates = []
+    total = _len_eles(driver)
+    counter = 0
+    xpath = '//*[@id="topic-detail"]/div[1]/div/div[5]/div[2]/div[{}]/div[1]/div[2]/div[1]/div/span'
+    a_xpath = '//*[@id="topic-detail"]/div[1]/div/div[5]/div[2]/div[{}]/div[1]/div[1]/div/div/div[2]/a'
+    ymd_start = datetime(start[0], start[1], start[2]).date()
+    ymd_stop = datetime(stop[0], stop[1], stop[2]).date()
+
+    for i in range(total):
+        try:
+            ele = driver.find_element_by_xpath(xpath.format(i+1)).text[:11]
+            ts = datetime.strptime(ele, '%d %b %Y').date()
+            href = driver.find_element_by_xpath(a_xpath.format(i+1)).get_attribute('href')
+            if ts < ymd_start:
+                counter += 1
+                if counter > 5:
+                    print('All articles scraped')
+                    return urls, date
+                continue
+            elif ts < ymd_stop:
+                if re.search('(news)', href):
+                    urls.append(href)
+                    dates.append(ts)  
+        except:
+            continue
+    
+    driver.quit()
+    print(f'Number of URLs: {len(urls)}')
+    print(f'Number of Dates: {len(dates)}')
+    return urls, dates
+
+def scrape_one_scmp(url, driver, count_sc, count_no):
+    '''
+    Function to scrape 1 SCMP headline, byline, text, body
+    '''
+    driver.get(url)
+    time.sleep(random.uniform(1, 3))
+
+    # Click modal button
+    try:
+        modal_button = driver.find_element_by_css_selector('svg')
+        modal_button.click()
+    except:
+        pass
+
+    try:
+        headline = driver.find_element_by_class_name('info__headline').text
+        texts = driver.find_elements_by_class_name('generic-article__body')
+        article = ' '.join([ text.text for text in texts ])
+        byline = driver.find_element_by_class_name('main-info__names').text
+        count_sc += 1
+    except:
+        count_no += 1
+        headline = 'No headline'
+        byline = 'No byline'
+        article = 'No text'
+
+    return headline, byline, article, count_sc, count_no
+
+def scrape_articles_scmp(urls, dates, headlines, bylines, bodies, start, stop, driver):
+    '''
+    Function to scrape all designated articles
+    '''
+    # urls, dates = scrape_urls_scmp(urls, dates, start, stop, driver)
+    
+    count_sc = 0
+    count_no = 0
+
+    for url in urls:
+        time.sleep(random.uniform(1, 3))
+        headline, byline, article, count_sc, count_no = scrape_one_scmp(url, driver, count_sc, count_no)
+        bodies.append(article)
+        headlines.append(headline)
+        bylines.append(byline)
+    
+    print(f'Number of Articles Scraped: {count_sc}\n')
+    print(f'Number of Articles w/o Text: {count_no}\n')
+
+    return urls, dates, headlines, bylines, bodies
+
+def scrape_scmp(start, stop, scroll, ret_csv=False, csv='', ret_df=True):
+    '''
+    Function to convert data to DataFrame and .csv
+
+    Parameters:
+        start : tuple (Y, m, d), inclusive start date for article scraping
+        stop : tuple (Y, m, d), exclusive stop date for article scraping
+        scroll : int, number of scrolls through SCMP web search
+        ret_csv : bool (default False), True returns .csv file
+        csv : str (path), path for .csv file if ret_csv=True
+        ret_df : bool (default False), True returns DataFrame
+    '''
+    # Instantiate driver
+    driver = webdriver.Chrome()
+    driver.get('https://www.scmp.com/topics/hong-kong-protests')
+
+    urls = []
+    dates = []
+    headlines = []
+    bylines = []
+    bodies = []
+    
+    urls, dates, headlines, bylines, bodies = scrape_articles_scmp(urls, dates, headlines, bylines, bodies, start, stop, driver)
+    df = pd.DataFrame()
+    df['url'] = urls
+    df['date'] = dates
+    df['headline'] = headlines
+    df['byline'] = bylines
+    df['body'] = bodies
+    df['source'] = 'SCMP'
+    df['index'] = range(len(df.index))
+    df.set_index('index', inplace=True)
+
+    # Quit driver
+    driver.quit()
+    
+    # Convert to .csv (with tab delimiter)
+    if ret_csv == True:
+        df.to_csv(csv, sep='\t')
+        print(f'File {csv} Created')
+    
+    if ret_df == True:
+        return df
     return
