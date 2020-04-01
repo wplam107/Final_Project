@@ -161,69 +161,78 @@ def _super_scroll(scroll, driver):
     '''
     Function to scroll down page, approximately 30 new articles per scroll
     '''
-    counter = 0
+    # driver = webdriver.Chrome()
+    # driver.get('https://www.scmp.com/topics/hong-kong-protests')
+
     i = 0
     while i < scroll:
-        actions = ActionChains(driver)
-        time.sleep(random.uniform(1, 3))
-        more_content = driver.find_element_by_class_name('topic-content__load-more-anchor')
-        actions.move_to_element(more_content).double_click(more_content).send_keys(Keys.SPACE).perform()
-        i += 1
-        counter += 1
-        if counter % 10 == 0:    
-            print(f'Scrolls: {i}')
+        try:
+            actions = ActionChains(driver)
+            more_content = driver.find_element_by_class_name('topic-content__load-more-anchor')
+            actions.move_to_element(more_content).double_click(more_content).pause(1).send_keys(Keys.SPACE).perform()
+            i += 1
+            time.sleep(random.uniform(2, 5))
+            if i % 10 == 0:    
+                print(f'Scrolls: {i}')
+        except:
+            modal_button = driver.find_element_by_class_name('bottom-bar-close-button')
+            modal_button.click()
 
-# Helper function to determine number of articles
-def _len_eles(driver):
+            actions = ActionChains(driver)
+            more_content = driver.find_element_by_class_name('topic-content__load-more-anchor')
+            actions.move_to_element(more_content).double_click(more_content).pause(1).send_keys(Keys.SPACE).perform()
+            i += 1
+            time.sleep(random.uniform(2, 5))
+            if i % 10 == 0:    
+                print(f'Scrolls: {i}')
+
+    # Find total articles
+    time.sleep(8)
     total = len(driver.find_elements_by_xpath('//*[@id="topic-detail"]/div[1]/div/div[5]/div[2]/*'))
+    print(f'Total articles: {total}\n')
+    time.sleep(1)
     return total
 
-def scrape_urls_scmp(start, stop, scroll):
+def scrape_urls_scmp(scroll):
     '''
     Function to scrape URLs and dates
 
     Parameters:
-        start : tuple (Y, m, d), inclusive start date for article scraping
-        stop : tuple (Y, m, d), exclusive stop date for article scraping
         scroll : int, number of scrolls through SCMP web search
     '''
     # Instantiate driver
     driver = webdriver.Chrome()
     driver.get('https://www.scmp.com/topics/hong-kong-protests')
+    driver.maximize_window()
 
     # Scroll through pages
-    _super_scroll(scroll, driver)
+    total = _super_scroll(scroll, driver)
 
     urls = []
     dates = []
-    total = _len_eles(driver)
+
     counter = 0
     xpath = '//*[@id="topic-detail"]/div[1]/div/div[5]/div[2]/div[{}]/div[1]/div[2]/div[1]/div/span'
     a_xpath = '//*[@id="topic-detail"]/div[1]/div/div[5]/div[2]/div[{}]/div[1]/div[1]/div/div/div[2]/a'
-    ymd_start = datetime(start[0], start[1], start[2]).date()
-    ymd_stop = datetime(stop[0], stop[1], stop[2]).date()
 
     for i in range(total):
         try:
-            ele = driver.find_element_by_xpath(xpath.format(i+1)).text[:11]
-            ts = datetime.strptime(ele, '%d %b %Y').date()
+            ele = driver.find_element_by_xpath(xpath.format(i+1)).text
+            ts = datetime.strptime(ele, '%d %b %Y - %H:%M%p').date()
             href = driver.find_element_by_xpath(a_xpath.format(i+1)).get_attribute('href')
-            if ts < ymd_start:
+            if re.search('news', href):
+                urls.append(href)
+                dates.append(ts)
                 counter += 1
-                if counter > 5:
-                    print('All articles scraped')
-                    return urls, date
-                continue
-            elif ts < ymd_stop:
-                if re.search('(news)', href):
-                    urls.append(href)
-                    dates.append(ts)  
+                if counter % 50 == 0:
+                    print(f'URLs scraped so far: {counter}')
         except:
             continue
     
-    driver.quit()
-    print(f'Number of URLs: {len(urls)}')
-    print(f'Number of Dates: {len(dates)}')
+    # driver.quit()
+    print('\n')
+    print(f'Number of URLs Scraped: {len(urls)}')
+    print(f'Number of Dates Scraped: {len(dates)}')
     return urls, dates
 
 def scrape_one_scmp(url, driver, count_sc, count_no):
@@ -235,7 +244,7 @@ def scrape_one_scmp(url, driver, count_sc, count_no):
 
     # Click modal button
     try:
-        modal_button = driver.find_element_by_css_selector('svg')
+        modal_button = driver.find_element_by_class_name('bottom-bar-close-button')
         modal_button.click()
     except:
         pass
