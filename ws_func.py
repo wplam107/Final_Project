@@ -6,6 +6,7 @@ import time
 import datetime
 import random
 import requests
+import pickle
 from os import system
 from datetime import datetime
 from selenium import webdriver
@@ -240,7 +241,7 @@ def scrape_one_scmp(url, driver, count_sc, count_no):
     Function to scrape 1 SCMP headline, byline, text, body
     '''
     driver.get(url)
-    time.sleep(random.uniform(1, 3))
+    time.sleep(random.uniform(3, 5))
 
     # Click modal button
     try:
@@ -263,28 +264,60 @@ def scrape_one_scmp(url, driver, count_sc, count_no):
 
     return headline, byline, article, count_sc, count_no
 
-def scrape_articles_scmp(urls, dates, headlines, bylines, bodies, start, stop, driver):
+def scrape_articles_scmp(urls, headlines, bylines, bodies):
     '''
     Function to scrape all designated articles
     '''
-    # urls, dates = scrape_urls_scmp(urls, dates, start, stop, driver)
+    # Instantiate driver
+    driver = webdriver.Chrome()
     
     count_sc = 0
     count_no = 0
+    temp_articles = []
+    temp_headlines = []
+    temp_bylines = []
 
     for url in urls:
+        if (count_sc + count_no) % 25 == 0 and (count_sc + count_no) != 0:
+            driver.quit()
+            time.sleep(20)
+            driver = webdriver.Chrome()
+            time.sleep(20)
+        if (count_sc + count_no) % 50 == 0 and (count_sc + count_no) != 0:
+            print(f'Articles scraped so far: {count_sc + count_no}')
+            art_file = open(f'scmp_art{count_sc + count_no}.p', 'wb')
+            hl_file = open(f'scmp_hl{count_sc + count_no}.p', 'wb')
+            by_file = open(f'scmp_by{count_sc + count_no}.p', 'wb')
+            pickle.dump(temp_articles, art_file)
+            pickle.dump(temp_headlines, hl_file)
+            pickle.dump(temp_bylines, by_file)               
+            art_file.close()
+            hl_file.close()
+            by_file.close()
+
+            temp_articles = []
+            temp_headlines = []
+            temp_bylines = []
+            time.sleep(30)
+
         time.sleep(random.uniform(1, 3))
         headline, byline, article, count_sc, count_no = scrape_one_scmp(url, driver, count_sc, count_no)
         bodies.append(article)
         headlines.append(headline)
         bylines.append(byline)
+        temp_articles.append(article)
+        temp_headlines.append(headline)
+        temp_bylines.append(byline)
+
+    # Quit driver
+    driver.quit()
     
     print(f'Number of Articles Scraped: {count_sc}\n')
     print(f'Number of Articles w/o Text: {count_no}\n')
 
-    return urls, dates, headlines, bylines, bodies
+    return headlines, bylines, bodies
 
-def scrape_scmp(start, stop, scroll, ret_csv=False, csv='', ret_df=True):
+def scrape_scmp(urls, dates, ret_csv=False, csv='', ret_df=True):
     '''
     Function to convert data to DataFrame and .csv
 
@@ -296,17 +329,12 @@ def scrape_scmp(start, stop, scroll, ret_csv=False, csv='', ret_df=True):
         csv : str (path), path for .csv file if ret_csv=True
         ret_df : bool (default False), True returns DataFrame
     '''
-    # Instantiate driver
-    driver = webdriver.Chrome()
-    driver.get('https://www.scmp.com/topics/hong-kong-protests')
 
-    urls = []
-    dates = []
     headlines = []
     bylines = []
     bodies = []
     
-    urls, dates, headlines, bylines, bodies = scrape_articles_scmp(urls, dates, headlines, bylines, bodies, start, stop, driver)
+    headlines, bylines, bodies = scrape_articles_scmp(urls, headlines, bylines, bodies)
     df = pd.DataFrame()
     df['url'] = urls
     df['date'] = dates
@@ -316,9 +344,6 @@ def scrape_scmp(start, stop, scroll, ret_csv=False, csv='', ret_df=True):
     df['source'] = 'SCMP'
     df['index'] = range(len(df.index))
     df.set_index('index', inplace=True)
-
-    # Quit driver
-    driver.quit()
     
     # Convert to .csv (with tab delimiter)
     if ret_csv == True:
