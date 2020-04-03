@@ -30,6 +30,7 @@ def scrape_urls_cnn(urls, dates, start, stop, driver):
     
     # Scrape urls of each page
     for i in range(10):
+        counter = 0
         try:
             ele = driver.find_element_by_xpath(xpath.format(i+1)).text.replace(',', '')
             ts = datetime.strptime(ele, '%b %d %Y').date()
@@ -43,9 +44,13 @@ def scrape_urls_cnn(urls, dates, start, stop, driver):
                     urls.append(href)
                     dates.append(ts)
         except:
-            print('All URLS in date range scraped')
-            print(f'Number of article URLs: {len(urls)}\n')
-            return urls, dates
+            counter += 1
+            if counter < 5:
+                continue
+            else:
+                print('All URLS in date range scraped')
+                print(f'Number of article URLs: {len(urls)}\n')
+                return urls, dates
     
     # Click to next page if there is one
     try:
@@ -65,7 +70,7 @@ def _clean_body(article):
 
 def scrape_one_cnn(url, driver, count_sc, count_no):
     '''
-    Function to scrape headline, byline, and article body
+    Function to scrape headline and article body
     '''
     driver.get(url)
     time.sleep(3)
@@ -82,17 +87,15 @@ def scrape_one_cnn(url, driver, count_sc, count_no):
         texts = driver.find_elements_by_class_name('zn-body__paragraph')
         article = ' '.join([ text.text for text in texts ])
         article = _clean_body(article)
-        byline = driver.find_element_by_class_name('metadata__byline__author').text
         count_sc += 1
     except:
         count_no += 1
         headline = 'No headline'
-        byline = 'No byline'
         article = 'No text'
         
-    return headline, byline, article, count_sc, count_no  
+    return headline, article, count_sc, count_no  
 
-def scrape_articles_cnn(urls, dates, headlines, bylines, bodies, start, stop, driver):
+def scrape_articles_cnn(urls, dates, headlines, bodies, start, stop, driver):
     '''
     Function to scrape all designated articles
     '''
@@ -102,15 +105,14 @@ def scrape_articles_cnn(urls, dates, headlines, bylines, bodies, start, stop, dr
     count_no = 0
 
     for url in urls:
-        headline, byline, article, count_sc, count_no = scrape_one_cnn(url, driver, count_sc, count_no)
+        headline, article, count_sc, count_no = scrape_one_cnn(url, driver, count_sc, count_no)
         bodies.append(article)
         headlines.append(headline)
-        bylines.append(byline)
     
     print(f'Number of Articles Scraped: {count_sc}\n')
     print(f'Number of Articles w/o Text: {count_no}\n')
 
-    return urls, dates, headlines, bylines, bodies      
+    return urls, dates, headlines, bodies      
 
 def scrape_cnn(start, stop, ret_csv=False, csv='', ret_df=True):
     '''
@@ -130,15 +132,13 @@ def scrape_cnn(start, stop, ret_csv=False, csv='', ret_df=True):
     urls = []
     dates = []
     headlines = []
-    bylines = []
     bodies = []
     
-    urls, dates, headlines, bylines, bodies = scrape_articles_cnn(urls, dates, headlines, bylines, bodies, start, stop, driver)
+    urls, dates, headlines, bodies = scrape_articles_cnn(urls, dates, headlines, bodies, start, stop, driver)
     df = pd.DataFrame()
     df['url'] = urls
     df['date'] = dates
     df['headline'] = headlines
-    df['byline'] = bylines
     df['body'] = bodies
     df['source'] = 'CNN'
     df['index'] = range(len(df.index))
@@ -204,7 +204,7 @@ def scrape_urls_scmp(scroll):
     # Instantiate driver
     driver = webdriver.Chrome()
     driver.get('https://www.scmp.com/topics/hong-kong-protests')
-    driver.maximize_window()
+    
 
     # Scroll through pages
     total = _super_scroll(scroll, driver)
@@ -238,12 +238,24 @@ def scrape_urls_scmp(scroll):
 
 def scrape_one_scmp(url, driver, count_sc, count_no):
     '''
-    Function to scrape 1 SCMP headline, byline, text, body
+    Function to scrape 1 SCMP headline, text, body
     '''
     driver.get(url)
-    time.sleep(random.uniform(3, 5))
+    try:
+        headline = driver.find_element_by_class_name('info__headline').text
+        hl = driver.find_element_by_class_name('info__headline')
+        
+    except:
+        count_no += 1
+        headline = 'No headline'
+        article = 'No text'
+        return headline, article, count_sc, count_no    
 
-    # Click modal button
+    actions = ActionChains(driver)
+    time.sleep(5)
+    actions.double_click(hl).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).perform()
+
+    # Click modal and full article button
     try:
         modal_button = driver.find_element_by_class_name('bottom-bar-close-button')
         modal_button.click()
@@ -251,71 +263,66 @@ def scrape_one_scmp(url, driver, count_sc, count_no):
         pass
 
     try:
-        headline = driver.find_element_by_class_name('info__headline').text
         texts = driver.find_elements_by_class_name('generic-article__body')
-        article = ' '.join([ text.text for text in texts ])
-        byline = driver.find_element_by_class_name('main-info__names').text
+        article = []
+        for text in texts:
+            cond1 = re.search('Photo:', text.text)
+            cond2 = re.search('CORONAVIRUS UPDATE NEWSLETTER', text.text)
+            cond3 = re.search('Privacy Policy', text.text)
+            if cond1 or cond2 or cond3:
+                pass
+            else:
+                article.append(text.text)
+        article = ' '.join(' '.join(article).split('\n'))
         count_sc += 1
     except:
         count_no += 1
         headline = 'No headline'
-        byline = 'No byline'
         article = 'No text'
 
-    return headline, byline, article, count_sc, count_no
+    return headline, article, count_sc, count_no
 
-def scrape_articles_scmp(urls, headlines, bylines, bodies):
+def scrape_articles_scmp(urls, headlines, bodies):
     '''
     Function to scrape all designated articles
     '''
     # Instantiate driver
     driver = webdriver.Chrome()
-    
+    driver.maximize_window()
+
     count_sc = 0
     count_no = 0
-    temp_articles = []
-    temp_headlines = []
-    temp_bylines = []
 
     for url in urls:
-        if (count_sc + count_no) % 25 == 0 and (count_sc + count_no) != 0:
-            driver.quit()
-            time.sleep(20)
-            driver = webdriver.Chrome()
-            time.sleep(20)
-        if (count_sc + count_no) % 50 == 0 and (count_sc + count_no) != 0:
-            print(f'Articles scraped so far: {count_sc + count_no}')
-            art_file = open(f'scmp_art{count_sc + count_no}.p', 'wb')
-            hl_file = open(f'scmp_hl{count_sc + count_no}.p', 'wb')
-            by_file = open(f'scmp_by{count_sc + count_no}.p', 'wb')
-            pickle.dump(temp_articles, art_file)
-            pickle.dump(temp_headlines, hl_file)
-            pickle.dump(temp_bylines, by_file)               
-            art_file.close()
-            hl_file.close()
-            by_file.close()
-
-            temp_articles = []
-            temp_headlines = []
-            temp_bylines = []
-            time.sleep(30)
-
-        time.sleep(random.uniform(1, 3))
-        headline, byline, article, count_sc, count_no = scrape_one_scmp(url, driver, count_sc, count_no)
+        time.sleep(random.uniform(0, 2))
+        headline, article, count_sc, count_no = scrape_one_scmp(url, driver, count_sc, count_no)
         bodies.append(article)
         headlines.append(headline)
-        bylines.append(byline)
-        temp_articles.append(article)
-        temp_headlines.append(headline)
-        temp_bylines.append(byline)
 
+        if (count_sc + count_no) % 25 == 0 and (count_sc + count_no) != 0:
+            driver.quit()
+            time.sleep(15)
+            driver = webdriver.Chrome()
+            driver.maximize_window()
+            time.sleep(15)
+        if (count_sc + count_no) % 50 == 0 and (count_sc + count_no) != 0:
+            time.sleep(random.uniform(8, 12))
+            print(f'Current articles scraped: {count_sc + count_no}')
+        if (count_sc + count_no) % 250 == 0 and (count_sc + count_no) != 0:
+            hl_file = open(f'scmp_hl{count_sc + count_no}.p', 'wb')
+            pickle.dump(headlines, hl_file)
+            hl_file.close()
+            bdies_file = open(f'scmp_bdies{count_sc + count_no}.p', 'wb')
+            pickle.dump(bodies, bdies_file)
+            bdies_file.close()
+            
     # Quit driver
     driver.quit()
     
     print(f'Number of Articles Scraped: {count_sc}\n')
     print(f'Number of Articles w/o Text: {count_no}\n')
 
-    return headlines, bylines, bodies
+    return headlines, bodies
 
 def scrape_scmp(urls, dates, ret_csv=False, csv='', ret_df=True):
     '''
@@ -331,21 +338,123 @@ def scrape_scmp(urls, dates, ret_csv=False, csv='', ret_df=True):
     '''
 
     headlines = []
-    bylines = []
     bodies = []
     
-    headlines, bylines, bodies = scrape_articles_scmp(urls, headlines, bylines, bodies)
+    headlines, bodies = scrape_articles_scmp(urls, headlines, bodies)
     df = pd.DataFrame()
     df['url'] = urls
     df['date'] = dates
     df['headline'] = headlines
-    df['byline'] = bylines
     df['body'] = bodies
     df['source'] = 'SCMP'
     df['index'] = range(len(df.index))
     df.set_index('index', inplace=True)
     
     # Convert to .csv (with tab delimiter)
+    if ret_csv == True:
+        df.to_csv(csv, sep='\t')
+        print(f'File {csv} Created')
+    
+    if ret_df == True:
+        return df
+    return
+
+# ABC (Australia) Functions
+
+def url_scrap_page_abc(urls, page, driver):
+    a_xpath = '//*[@id="#content"]/section[2]/div/div[3]/div[2]/ul/li[{}]/div/article/div/div[1]/div/a'
+    driver.get(page)
+    time.sleep(random.uniform(2, 4))
+    for i in range(0, 10):
+        url = driver.find_element_by_xpath(a_xpath.format(i+1)).get_attribute('href')
+        if re.search('news', url):
+            urls.append(url)
+    return urls
+
+def url_scrape_all_abc(driver):
+    page_range = range(1, 15)
+    href = 'https://search-beta.abc.net.au/#/?query=%22hong%20kong%20protests%22&page={}&configure%5BgetRankingInfo%5D=true&configure%5BclickAnalytics%5D=true&configure%5BuserToken%5D=anonymous-02f5b4b2-06b4-4402-9b15-3cc4fc5dbb64&configure%5Banalytics%5D=true&sortBy=ABC_production_all_latest&refinementList%5Bsite.title%5D%5B0%5D=ABC%20News'
+    pages = [ href.format(i) for i in page_range ]
+    urls = []
+    for page in pages:
+        urls = url_scrap_page_abc(urls, page, driver)
+    print(f'Total Articles: {len(urls)}')
+    return urls
+
+def scrape_one_abc(url, driver, count_sc, count_no):
+    driver.get(url)
+    time.sleep(2)
+    driver.execute_script("window.scrollTo(0,document.body.scrollHeight)")
+    time.sleep(2)
+
+    try:
+        date = driver.find_element_by_css_selector('time').get_attribute('title')
+        date = datetime.strptime(date.split(',')[0], '%a %d %b %Y').date()
+    except:
+        date = driver.find_element_by_css_selector('time').text
+        date = ' '.join(date.split(' ')[1:4])
+        try:
+            date = datetime.strptime(date, '%d %B %Y').date()
+        except:
+            date = datetime.strptime(date, '%d %b %Y').date()
+
+    headline = driver.find_element_by_css_selector('h1').text
+    eles = driver.find_elements_by_xpath('//*[@id="main_content"]/div[1]/div/div[1]/div/p')
+    body = []
+    for ele in eles:
+        p = ele.text
+        cond1 = re.search('Topics:', p)
+        cond2 = re.search('Updated', p)
+        cond3 = re.search('First posted', p)
+        cond4 = re.search('Source:', p)
+        if cond1 or cond2 or cond3 or cond4 or p == '':
+            continue
+        else:
+            body.append(p)
+
+    body = ' '.join(body)
+    count_sc += 1
+    if count_sc % 10 == 0:
+        print(f'Articles scraped so far: {count_sc}')
+    return date, headline, body, count_sc, count_no
+
+def scrape_all_abc(urls, ret_csv=False, csv='', ret_df=True):
+    driver = webdriver.Chrome()
+    driver.maximize_window()
+
+    dates = []
+    headlines = []
+    bodies = []
+    urls_sc = []
+
+    count_sc = 0
+    count_no = 0
+
+    for url in urls:
+        if re.search('interactive', url) or re.search('documentary', url):
+            count_no += 1
+            print(f'Articles bypassed so far: {count_no}')
+            continue
+        else:
+            date, headline, body, count_sc, count_no = scrape_one_abc(url, driver, count_sc, count_no)
+            urls_sc.append(url)
+            dates.append(date)
+            headlines.append(headline)
+            bodies.append(body)
+    
+    driver.quit()
+    print(f'Articles Scraped: {count_sc}')
+    print(f'Articles Bypasses: {count_no}')
+
+    df = pd.DataFrame()
+    df['url'] = urls_sc
+    df['date'] = dates
+    df['headline'] = headlines
+    df['body'] = bodies
+    df['source'] = 'ABC (Australia)'
+    df['index'] = range(len(urls_sc))
+    df.set_index('index', inplace=True)
+
     if ret_csv == True:
         df.to_csv(csv, sep='\t')
         print(f'File {csv} Created')
