@@ -196,23 +196,25 @@ def scrape_urls_scmp(scroll):
     return urls, dates
 
 def scrape_one_scmp(url, driver, count_sc, count_no):
-    '''
-    Function to scrape 1 SCMP headline, text, body
-    '''
     driver.get(url)
-    try:
-        headline = driver.find_element_by_class_name('info__headline').text
-        hl = driver.find_element_by_class_name('info__headline')
-        
-    except:
+    if re.search('/video/', url) or re.search('/infographics/', url) or re.search('united-states-canada', url):
+        time.sleep(8)
+        headline = ''
+        body = ''
         count_no += 1
-        headline = 'No headline'
-        article = 'No text'
-        return headline, article, count_sc, count_no    
+        return headline, body, count_sc, count_no
+    
+    try:
+        head = driver.find_element_by_class_name('info__headline')
+        if head == None:
+            head = driver.find_elements_by_css_selector('h1')
+        headline = head.text
+    except:
+        headline = ''  
 
     actions = ActionChains(driver)
     time.sleep(5)
-    actions.double_click(hl).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).perform()
+    actions.double_click(head).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).pause(0.5).send_keys(Keys.SPACE).perform()
 
     # Click modal and full article button
     try:
@@ -220,26 +222,33 @@ def scrape_one_scmp(url, driver, count_sc, count_no):
         modal_button.click()
     except:
         pass
-
     try:
-        texts = driver.find_elements_by_class_name('generic-article__body')
-        article = []
-        for text in texts:
-            cond1 = re.search('Photo:', text.text)
-            cond2 = re.search('CORONAVIRUS UPDATE NEWSLETTER', text.text)
-            cond3 = re.search('Privacy Policy', text.text)
-            if cond1 or cond2 or cond3:
-                pass
-            else:
-                article.append(text.text)
-        article = ' '.join(' '.join(article).split('\n'))
-        count_sc += 1
+        text_body = driver.find_element_by_class_name('details__body')
+        texts = text_body.find_elements_by_class_name('generic-article__body')
+        if texts == None:
+            texts = text_body.find_elements_by_css_selector('p')
     except:
+        body = ''
         count_no += 1
-        headline = 'No headline'
-        article = 'No text'
+        return headline, body, count_sc, count_no
 
-    return headline, article, count_sc, count_no
+    body = []
+    for text in texts:
+        cond1 = re.search('Photo:', text.text)
+        cond2 = re.search('CORONAVIRUS UPDATE NEWSLETTER', text.text)
+        cond3 = re.search('Privacy Policy', text.text)
+        cond4 = re.search('Advertisement', text.text)
+        if cond1 or cond2 or cond3 or cond4:
+            continue
+        else:
+            body.append(text.text)
+    body = ' '.join(body)
+    if body == '':
+        count_no += 1
+    else:
+        count_sc += 1
+        
+    return headline, body, count_sc, count_no
 
 def scrape_articles_scmp(urls, headlines, bodies):
     '''
@@ -254,26 +263,20 @@ def scrape_articles_scmp(urls, headlines, bodies):
 
     for url in urls:
         time.sleep(random.uniform(1, 3))
-        headline, article, count_sc, count_no = scrape_one_scmp(url, driver, count_sc, count_no)
-        bodies.append(article)
+        headline, body, count_sc, count_no = scrape_one_scmp(url, driver, count_sc, count_no)
+        bodies.append(body)
         headlines.append(headline)
 
-        if (count_sc + count_no) % 25 == 0 and (count_sc + count_no) != 0:
+        if (count_sc + count_no) % 20 == 0 and (count_sc + count_no) != 0:
+            print(f'Current articles scraped: {count_sc + count_no}')
             driver.quit()
             time.sleep(20)
             driver = webdriver.Chrome()
             driver.maximize_window()
             time.sleep(20)
-        if (count_sc + count_no) % 50 == 0 and (count_sc + count_no) != 0:
+
+        if (count_sc + count_no) % 40 == 0 and (count_sc + count_no) != 0:
             time.sleep(10)
-            print(f'Current articles scraped: {count_sc + count_no}')
-        if (count_sc + count_no) % 250 == 0 and (count_sc + count_no) != 0:
-            hl_file = open(f'scmp_hl{count_sc + count_no}.p', 'wb')
-            pickle.dump(headlines, hl_file)
-            hl_file.close()
-            bdies_file = open(f'scmp_bdies{count_sc + count_no}.p', 'wb')
-            pickle.dump(bodies, bdies_file)
-            bdies_file.close()
             
     # Quit driver
     driver.quit()
@@ -283,19 +286,7 @@ def scrape_articles_scmp(urls, headlines, bodies):
 
     return headlines, bodies
 
-def scrape_scmp(urls, dates, ret_csv=False, csv='', ret_df=True):
-    '''
-    Function to convert data to DataFrame and .csv
-
-    Parameters:
-        start : tuple (Y, m, d), inclusive start date for article scraping
-        stop : tuple (Y, m, d), exclusive stop date for article scraping
-        scroll : int, number of scrolls through SCMP web search
-        ret_csv : bool (default False), True returns .csv file
-        csv : str (path), path for .csv file if ret_csv=True
-        ret_df : bool (default False), True returns DataFrame
-    '''
-
+def scrape_scmp(urls, dates, ret_csv=False, csv=''):
     headlines = []
     bodies = []
     
@@ -306,17 +297,13 @@ def scrape_scmp(urls, dates, ret_csv=False, csv='', ret_df=True):
     df['headline'] = headlines
     df['body'] = bodies
     df['source'] = 'SCMP'
-    df['index'] = range(len(df.index))
-    df.set_index('index', inplace=True)
     
     # Convert to .csv (with tab delimiter)
     if ret_csv == True:
         df.to_csv(csv, sep='\t')
         print(f'File {csv} Created')
     
-    if ret_df == True:
-        return df
-    return
+    return df
 
 # ABC (Australia) Functions
 
@@ -495,10 +482,12 @@ def scrape_cctv(urls, ret_csv=False, csv=''):
 # Function to clickdown for more articles till no more
 def clickdown_reuters(driver):
     more_button = driver.find_element_by_xpath('//*[@id="content"]/section[2]/div/div[1]/div[4]/div/div[4]/div[1]')
-    for i in range(76):
+    counter = 80
+    while counter > 0:
         time.sleep(0.5)
         try:
             more_button.click()
+            counter += 1
         except:
             break
 
