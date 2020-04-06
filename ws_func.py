@@ -198,7 +198,7 @@ def scrape_urls_scmp(scroll):
 def scrape_one_scmp(url, driver, count_sc, count_no):
     driver.get(url)
     if re.search('/video/', url) or re.search('/infographics/', url) or re.search('united-states-canada', url):
-        time.sleep(8)
+        time.sleep(10)
         headline = ''
         body = ''
         count_no += 1
