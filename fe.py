@@ -39,15 +39,7 @@ def replace_words(text):
     text = text.replace('theCommissionerof', 'the Commissioner of')
     return text
 
-def preprocess_words(text):
-    stop_words = stopwords.words('english')
-    result = []
-    for token in gensim.utils.simple_preprocess(text):
-        if token not in stop_words:
-            result.append(WordNetLemmatizer().lemmatize(token, pos='v'))
-    return result
-
-def preprocess_sentence(text):
+def preprocess(text):
     stop_words = stopwords.words('english')
     result = []
     for token in gensim.utils.simple_preprocess(text):
@@ -56,6 +48,6 @@ def preprocess_sentence(text):
     return ' '.join(result)
 
 def preprocess_all(listy):
-    results = [ preprocess_sentence(text) for text in listy ]
+    results = [ preprocess(text) for text in listy ]
     return results
 
