@@ -9,11 +9,12 @@ file = open('viz_df.p', 'rb')
 viz_df = pickle.load(file)
 file.close()
 
-
-col_options = [dict(label=x, value=x) for x in ['pc1', 'pc2', 'pc3', 'pc4', 'pc5', 'pc6']]
+comps = ['pc1', 'pc2', 'pc3', 'pc4', 'pc5', 'pc6']
+text_data = ['protest', 'gov', 'econ', 'poli', 'date']
+col_options = [dict(label=x, value=x) for x in comps]
 dimensions = ["x", "y", "z"]
 models = ['Hierarchical', 'K-Means', 'Mean Shift', 'Spectral']
-text_data = ['protest', 'gov', 'econ', 'poli', 'date']
+
 
 app = dash.Dash(
     __name__, external_stylesheets=["https://codepen.io/chriddyp/pen/bWLwgP.css"]
@@ -34,7 +35,7 @@ app.layout = html.Div(
                     # labelStyle={'display': 'inline-block'},
                     # style={"width": "25%", "float": "left"},
         ))]),
-        dcc.Graph(id="graph", style={"width": "75%", "display": "inline-block"}),
+        dcc.Graph(id="graph", style={"width": "100%", "display": "inline-block"}),
     ]
 )
 
