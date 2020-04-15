@@ -14,7 +14,7 @@ file.close()
 def two_d(mod, viz_df=viz_df, components=['pc1', 'pc3']):
     n_clusters = len(viz_df[mod].unique())
     c_label = list(viz_df[mod].unique())
-    color_map = {'0': 'green', '1': 'blue', '2': 'red', '-1': 'fuchsia'}
+    color_map = {'0': 'green', '1': 'blue', '2': 'red', '3': 'orange', '-1': 'fuchsia'}
     fig = px.scatter(viz_df,
                      x=components[0],
                      y=components[1],
@@ -26,7 +26,7 @@ def two_d(mod, viz_df=viz_df, components=['pc1', 'pc3']):
                      hover_data=[mod, 'date'],
                     )
     
-    fig.update_layout(legend_orientation="v")
+    fig.update_layout(legend_orientation="v", showlegend=False)
     
     # Create cluster areas
     dicts = []
@@ -62,17 +62,20 @@ def two_d(mod, viz_df=viz_df, components=['pc1', 'pc3']):
 
 # Function for 3D plot
 def three_d(mod, viz_df=viz_df, components=['pc1', 'pc4', 'pc5']):
+    color_map = {'0': 'green', '1': 'blue', '2': 'red', '3': 'orange', '-1': 'fuchsia'}
     fig = px.scatter_3d(viz_df, x=components[0], y=components[1], z=components[2],
                         color=mod, symbol='source', opacity=0.8,
-                        hover_name='headline', hover_data=[mod])
-    fig.update_layout(showlegend=True)
+                        color_discrete_map=color_map,
+                        hover_name='headline', hover_data=[mod],
+                        title=f'{mod} Clustering along {components}')
+    fig.update_layout(showlegend=False)
     fig.show()
 
 # Function to group sources by model cluster
 def source_group(mod):
     labels = sorted(viz_df[mod].unique())
     a = pd.DataFrame(viz_df.groupby('source')[mod].value_counts(normalize=True, sort=False))
-    a = round(a.unstack() * 100, 2)
+    a = round(a.unstack() * 100, 1)
     a = np.where(a.isna(), 0, a)
     return labels, a
 
@@ -93,6 +96,7 @@ def h_bar(mod):
             fig.add_trace(go.Bar(
                 x=[xd[i]], y=[yd],
                 orientation='h',
+                hovertemplate='Source: %{yd}, ',
                 marker=dict(
                     color=colors[i],
                     line=dict(color='rgb(248, 248, 249)', width=1)
@@ -114,8 +118,8 @@ def h_bar(mod):
             zeroline=False,
         ),
         barmode='stack',
-        paper_bgcolor='rgb(248, 248, 255)',
-        plot_bgcolor='rgb(248, 248, 255)',
+        paper_bgcolor='rgb(255, 255, 255)',
+        plot_bgcolor='rgb(255, 255, 255)',
         margin=dict(l=10, r=40, t=140, b=80),
         showlegend=False,
     )
