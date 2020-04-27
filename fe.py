@@ -56,17 +56,19 @@ def preprocess_body(text):
     return text_out
 
 # Following functions modified from https://www.machinelearningplus.com/nlp/topic-modeling-gensim-python/
+
+def _bigram_model(data_words):
+    bigram = gensim.models.Phrases(data_words, min_count=5, threshold=10)
+    bigram_mod = gensim.models.phrases.Phraser(bigram)
+    return bigram_mod
+
 def make_bigrams_sent(texts):
+    bigram_mod = _bigram_model(texts)
     return [ bigram_mod[doc] for doc in texts ]
 
 def make_bigrams(text):
+    bigram_mod = _bigram_model(text)
     return bigram_mod[text]
-
-def make_trigrams_sent(texts):
-    return [ trigram_mod[bigram_mod[doc]] for doc in texts ]
-
-def make_trigrams(text):
-    return trigram_mod[bigram_mod[text]]
 
 nlp = spacy.load('en', disable=['parser', 'ner'])
 
@@ -89,7 +91,7 @@ def compute_coherence_values(dictionary, corpus, texts, limit, start=2, step=3):
     for num_topics in range(start, limit, step):
         model = gensim.models.wrappers.LdaMallet(mallet_path,
                                                  corpus=corpus,
-                                                 id2word=id2word,
+                                                 id2word=dictionary,
                                                  num_topics=num_topics)
         model_list.append(model)
         coherencemodel = CoherenceModel(model=model,
@@ -114,6 +116,14 @@ def subjectivity(text):
     analysis = TextBlob(text)
     return analysis.sentiment[1]
 
+file = open('mallet.p', 'rb')      
+model = pickle.load(file)
+file.close()
+
+file = open('id2word.p', 'rb')      
+dictionary = pickle.load(file)
+file.close()
+
 def sentiment_doc(combine):
     topic_0 = 0
     topic_1 = 0
@@ -129,8 +139,8 @@ def sentiment_doc(combine):
     num_sentences = len(tok)
     for i in range(num_sentences):
         tokens = tok[i].split()
-        vec = id2word.doc2bow(tokens)
-        topic = topic = sorted(mallet_model[vec], key=lambda tup: tup[1], reverse=True)[0][0]
+        vec = dictionary.doc2bow(tokens)
+        topic = topic = sorted(model[vec], key=lambda tup: tup[1], reverse=True)[0][0]
         sentiment = round(vader_analysis(reg[i])['compound'], 2)
         if topic == 0:
             topic_0 += sentiment
