@@ -10,5 +10,5 @@ For the final project at Flatiron School topic modeling, sentiment analysis, and
 ## Initial EDA and Feature Engineering:
 - Almost half of the articles were from SCMP and another quarter were from Reuters.  The remainder were from ABC, CNN, and CCTV.
 - With LDA Mallet, the optimal number of topics based coherence scores (from the gensim CoherenceModel) was 4 topics without SCMP and 12 with SCMP.  The class imbalance appears to heavily skew optimal topic numbers toward the optimal number of topics for SCMP articles.  This is further compounded by the fact that SCMP is a local HK paper that may include a greater range of language and "topics" when reporting on the HK protests.  As a result, SCMP articles were dropped from the topic modeling portion (a sample of SCMP articles could have been taken as an alternative measure).
-
+![Word Cloud of Topics](Images/topics.png)
 - Sentiment was measured in sentence in each article and a topic sentiment score was summed for each article such that each article had a sentiment score for each of the 4 topics.
