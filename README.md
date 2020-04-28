@@ -1,6 +1,8 @@
 # Language in News
 ## The Project:
 For the final project at Flatiron School topic modeling, sentiment analysis, and clustering was used in order to identify possible differences between news sources.  The idea was to measure how many topics were in each article (a most probable topic was assigned to each sentence using LDA Mallet), how strong was the langauge used in each sentence of those articles (sentiment analysis with VADER sentiment analysis), and then clustering of articles based on topics and sentiment attached to those topics.  News articles on the Hong Kong protests were scraped from the South China Morning Post (SCMP), the Australian Broadcast Corporation (ABC), Reuters, CNN, and CCTV (Chinese state news media).
+- Dashboard: https://language-in-news.herokuapp.com/
+- Accompanying GitHub page: https://github.com/wplam107/L_in_N
 
 ## The Data:
 - Over 3000 initial articles were scraped
@@ -17,6 +19,21 @@ For the final project at Flatiron School topic modeling, sentiment analysis, and
 - A quick glance at several sentences with the highest sentiment scores revealed that high sentiment scores may be correlated with sentences that are quotes.
 
 ## Clustering Models:
+- PCA was used to reduce dimensionality from 17 features to 6 principal components (while retaining >95% of variance).
 - Clustering algorithms were used to group articles based on similarity.  After exhausting all out-of-the-box clustering models in sklearn K-Means Clustering (3 clusters) and Spectral Clustering (2 clusters) were used as comparisons (the 2 algorithms were top 3 in terms of silhoutte score).
-- The following is a look at K-means Clustering and the average topic counts of each cluster and the percent of articles
+- The following is a look at topic ratios of the average article in each K-means cluster
 ![Topic frequency by cluster](images/topic_count.png)
+
+- Below is a comparison of K-Means Clustering and Spectral Clustering in terms of percentage of articles labeled in each cluster
+![Clusters by source](images/scl_by_s.png)
+
+## Conclusions and Notes:
+- There was a difference between sources in term of which clusters by source and topics by source (both with Chi-Squared values > 100)
+- CCTV seems to standout with a lot of articles focusing on the "government" topic.  Reuters also had a more "economic" lean in their reporting.
+- Further steps that can be taken:
+  - Sample SCMP articles for topic modeling
+  - Remove VADER sentiment as a metric and focus on different topic models such as doc2vec for document embeddings by sentence
+  - Remove sentences that are a part of quotes to constrain sentiment scores to statements made by the news outlet itself
+  - Create a separate metric for number of quotes in an article by topic
+  - Increase number of articles to include Chinese language news with the aid of TextBlob
+  - Change sum of sentiment to average of sentiment
