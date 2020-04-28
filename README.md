@@ -25,7 +25,7 @@ For the final project at Flatiron School topic modeling, sentiment analysis, and
 ![Topic frequency by cluster](images/topic_count.png)
 
 - Below is a comparison of K-Means Clustering and Spectral Clustering in terms of percentage of articles labeled in each cluster
-![Clusters by source](images/scl_by_s.png)
+![Spectral Clusters by source](images/scl_by_s.png)![K-Means Clusters by source](images/km_cl_by_s.png)
 
 ## Conclusions and Notes:
 - There was a difference between sources in term of which clusters by source and topics by source (both with Chi-Squared values > 100)
