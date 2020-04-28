@@ -1,4 +1,5 @@
 # Language in News
+- Contributor: Wayne Lam
 ## The Project:
 For the final project at Flatiron School topic modeling, sentiment analysis, and clustering was used in order to identify possible differences between news sources.  The idea was to measure how many topics were in each article (a most probable topic was assigned to each sentence using LDA Mallet), how strong was the langauge used in each sentence of those articles (sentiment analysis with VADER sentiment analysis), and then clustering of articles based on topics and sentiment attached to those topics.  News articles on the Hong Kong protests were scraped from the South China Morning Post (SCMP), the Australian Broadcast Corporation (ABC), Reuters, CNN, and CCTV (Chinese state news media).
 - Dashboard: https://language-in-news.herokuapp.com/
