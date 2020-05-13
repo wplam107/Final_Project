@@ -7,7 +7,7 @@ For the final project at Flatiron School topic modeling, sentiment analysis, and
 - Youtube Demo of Dashboard: https://youtu.be/uKPMpVUD-pk
 
 ## Major Takeaway:
-- Based on a variety of clustering algorithms, the percentage of articles belonging to a particular cluster varies by news source
+- Based on a variety of clustering algorithms, the percentage of articles belonging to a particular cluster varies by news source indicating that how the news is portrayed varies by news sources
 
 ## The Data:
 - Over 3000 initial articles were scraped
